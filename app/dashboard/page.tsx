@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 type Household = {
@@ -13,10 +13,11 @@ type Household = {
     memberships: { user: { name: string }; role: string }[]
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
     const { data: session, status } = useSession()
     const router = useRouter()
     const [households, setHouseholds] = useState<Household[]>([])
+    const [defaultId, setDefaultId] = useState<string | null>(null)
     const [newName, setNewName] = useState('')
     const [loading, setLoading] = useState(true)
     const [creating, setCreating] = useState(false)
@@ -25,33 +26,39 @@ export default function DashboardPage() {
     const [inviteSent, setInviteSent] = useState<Record<string, boolean>>({})
     const [inviteError, setInviteError] = useState<Record<string, string>>({})
     const [sendingInvite, setSendingInvite] = useState<Record<string, boolean>>({})
-    const [activities, setActivities] = useState<{
-        id: string
-        type: string
-        description: string
-        createdAt: string
-    }[]>([])
+    const searchParams = useSearchParams()
+
+    useEffect(() => {
+        if (status === 'unauthenticated') router.push('/login')
+    }, [status, router])
+
     useEffect(() => {
         if (status === 'authenticated') {
-            fetch('/api/households')
-                .then(r => r.json())
-                .then(async data => {
-                    const households = Array.isArray(data) ? data : []
-                    setHouseholds(households)
+            Promise.all([
+                fetch('/api/households').then(r => r.json()),
+                fetch('/api/user/me').then(r => r.json())
+            ]).then(([householdsData, userData]) => {
+                const list = Array.isArray(householdsData) ? householdsData : []
+                setHouseholds(list)
 
-                    // Fetch activities for first household
-                    if (households.length > 0) {
-                        const actRes = await fetch(`/api/households/${households[0].id}/activities`)
-                        const actData = await actRes.json()
-                        setActivities(Array.isArray(actData) ? actData : [])
+                if (userData.defaultHouseholdId) {
+                    setDefaultId(userData.defaultHouseholdId)
+
+                    // Only redirect if not already on dashboard intentionally
+                    const skipRedirect = searchParams.get('showAll') === 'true'
+
+                    if (!skipRedirect) {
+                        router.push(`/households/${userData.defaultHouseholdId}`)
+                        return
                     }
+                }
 
-                    setLoading(false)
-                })
+                setLoading(false)
+            })
         } else if (status === 'unauthenticated') {
             router.push('/login')
         }
-    }, [status, router])
+    }, [status, router, searchParams])
 
     async function createHousehold(e: React.FormEvent) {
         e.preventDefault()
@@ -64,27 +71,36 @@ export default function DashboardPage() {
         })
 
         const data = await res.json()
-        setHouseholds(prev => [...prev, { ...data, role: 'owner' }])
+        const refreshed = await fetch('/api/households').then(r => r.json())
+        setHouseholds(Array.isArray(refreshed) ? refreshed : [])
         setNewName('')
         setCreating(false)
     }
 
+    async function setDefault(householdId: string) {
+        await fetch('/api/user/default-household', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ householdId })
+        })
+        setDefaultId(householdId)
+        router.push(`/households/${householdId}`)
+    }
+
+    async function clearDefault() {
+        await fetch('/api/user/default-household', { method: 'DELETE' })
+        setDefaultId(null)
+        setLoading(false)
+    }
+
     function copyInvite(inviteCode: string) {
         const link = `${window.location.origin}/join/${inviteCode}`
-        console.log('INVITE LINK:', link)
         navigator.clipboard.writeText(link)
         setCopied(inviteCode)
         setTimeout(() => setCopied(null), 2000)
     }
 
-    if (status === 'loading' || loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <p className="text-gray-500">Loading...</p>
-            </div>
-        )
-    }
-    async function sendEmailInvite(householdId: string, inviteCode: string) {
+    async function sendEmailInvite(householdId: string) {
         const email = inviteEmail[householdId]
         if (!email) return
 
@@ -111,9 +127,17 @@ export default function DashboardPage() {
 
         setSendingInvite(prev => ({ ...prev, [householdId]: false }))
     }
+
+    if (status === 'loading' || loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <p className="text-gray-500">Loading...</p>
+            </div>
+        )
+    }
+
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Nav */}
             <nav className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
                 <h1 className="text-xl font-bold text-blue-600">FlatFlow</h1>
                 <div className="flex items-center gap-4">
@@ -169,54 +193,37 @@ export default function DashboardPage() {
                             <div key={h.id} className="bg-white rounded-lg shadow-sm p-6">
                                 <div className="flex justify-between items-start mb-3">
                                     <div>
-                                        <h3 className="font-semibold text-gray-900">{h.name}</h3>
+                                        <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-gray-900">{h.name}</h3>
+                                            {defaultId === h.id && (
+                                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                                    Default
+                                                </span>
+                                            )}
+                                        </div>
                                         <p className="text-sm text-gray-500 capitalize">{h.role}</p>
                                     </div>
                                     <button
                                         onClick={() => copyInvite(h.inviteCode)}
-                                        className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-md text-gray-700 font-medium"
+                                        className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-md text-gray-800 font-medium"
                                     >
                                         {copied === h.inviteCode ? '✓ Copied!' : 'Copy Invite Link'}
                                     </button>
                                 </div>
-                                {/* Invite by email */}
-                                <div className="mt-4 pt-4 border-t border-gray-100">
-                                    <p className="text-sm font-medium text-gray-700 mb-2">
-                                        Invite by email
-                                    </p>
-                                    <div className="flex gap-2">
-                                        <input
-                                            type="email"
-                                            value={inviteEmail[h.id] || ''}
-                                            onChange={e => setInviteEmail(prev => ({
-                                                ...prev,
-                                                [h.id]: e.target.value
-                                            }))}
-                                            placeholder="roommate@email.com"
-                                            className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-500"
-                                        />
-                                        <button
-                                            onClick={() => sendEmailInvite(h.id, h.inviteCode)}
-                                            disabled={sendingInvite[h.id] || !inviteEmail[h.id]}
-                                            className="bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-blue-700 disabled:opacity-50"
-                                        >
-                                            {sendingInvite[h.id]
-                                                ? 'Sending...'
-                                                : inviteSent[h.id]
-                                                    ? '✓ Sent!'
-                                                    : 'Send'}
-                                        </button>
-                                    </div>
-                                    {inviteError[h.id] && (
-                                        <p className="text-red-500 text-xs mt-1">{inviteError[h.id]}</p>
-                                    )}
-                                </div>
+
                                 <p className="text-sm text-gray-500 mb-4">
-                                    {h.memberships.length} member{h.memberships.length !== 1 ? 's' : ''}: {' '}
-                                    {h.memberships.map(m => m.user.name).join(', ')}
+                                    {h.memberships?.length ?? 0} member{(h.memberships?.length ?? 0) !== 1 ? 's' : ''}: {' '}
+                                    {h.memberships?.map(m => m.user.name).join(', ') ?? ''}
                                 </p>
 
-                                <div className="flex gap-2">
+                                {/* Action Buttons */}
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    <Link
+                                        href={`/households/${h.id}`}
+                                        className="text-sm bg-blue-600 text-white hover:bg-blue-700 px-3 py-1 rounded-md"
+                                    >
+                                        Open
+                                    </Link>
                                     <Link
                                         href={`/households/${h.id}/chores`}
                                         className="text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded-md"
@@ -235,30 +242,71 @@ export default function DashboardPage() {
                                     >
                                         Balances
                                     </Link>
+                                    {defaultId === h.id ? (
+                                        <button
+                                            onClick={clearDefault}
+                                            className="text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 px-3 py-1 rounded-md"
+                                        >
+                                            Clear Default
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => setDefault(h.id)}
+                                            className="text-sm bg-green-50 text-green-700 hover:bg-green-100 px-3 py-1 rounded-md"
+                                        >
+                                            Set as Default
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Invite by email */}
+                                <div className="pt-4 border-t border-gray-100">
+                                    <p className="text-sm font-medium text-gray-700 mb-2">
+                                        Invite by email
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="email"
+                                            value={inviteEmail[h.id] || ''}
+                                            onChange={e => setInviteEmail(prev => ({
+                                                ...prev,
+                                                [h.id]: e.target.value
+                                            }))}
+                                            placeholder="roommate@email.com"
+                                            className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-500"
+                                        />
+                                        <button
+                                            onClick={() => sendEmailInvite(h.id)}
+                                            disabled={sendingInvite[h.id] || !inviteEmail[h.id]}
+                                            className="bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-blue-700 disabled:opacity-50"
+                                        >
+                                            {sendingInvite[h.id]
+                                                ? 'Sending...'
+                                                : inviteSent[h.id]
+                                                    ? '✓ Sent!'
+                                                    : 'Send'}
+                                        </button>
+                                    </div>
+                                    {inviteError[h.id] && (
+                                        <p className="text-red-500 text-xs mt-1">{inviteError[h.id]}</p>
+                                    )}
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
-                {/* Activity Feed */}
-                {activities.length > 0 && (
-                    <div className="mt-8">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                            Recent Activity
-                        </h2>
-                        <div className="bg-white rounded-lg shadow-sm divide-y divide-gray-100">
-                            {activities.map(activity => (
-                                <div key={activity.id} className="px-4 py-3 flex justify-between items-center">
-                                    <p className="text-sm text-gray-700">{activity.description}</p>
-                                    <p className="text-xs text-gray-400 ml-4 shrink-0">
-                                        {new Date(activity.createdAt).toLocaleDateString()}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </main>
         </div>
+    )
+}
+export default function DashboardPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <p className="text-gray-500">Loading...</p>
+            </div>
+        }>
+            <DashboardContent />
+        </Suspense>
     )
 }

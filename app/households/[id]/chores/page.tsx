@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -111,11 +111,11 @@ export default function ChoresPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Nav */}
       <nav className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
-        <Link href="/dashboard" className="text-xl font-bold text-blue-600">
+        <Link href={`/households/${householdId}`} className="text-xl font-bold text-blue-600">
           FlatFlow
         </Link>
-        <div className="flex gap-4 text-sm">
-          <Link href={`/households/${householdId}/chores`} className="text-blue-600 font-medium">
+        <div className="flex items-center gap-4 text-sm">
+          <Link href={`/households/${householdId}/chores`} className="text-gray-500 hover:text-gray-700">
             Chores
           </Link>
           <Link href={`/households/${householdId}/expenses`} className="text-gray-500 hover:text-gray-700">
@@ -124,6 +124,18 @@ export default function ChoresPage() {
           <Link href={`/households/${householdId}/balances`} className="text-gray-500 hover:text-gray-700">
             Balances
           </Link>
+          <Link href={`/households/${householdId}/calendar`} className="text-gray-500 hover:text-gray-700">
+            Calendar
+          </Link>
+          <Link href="/dashboard?showAll=true" className="text-gray-500 hover:text-gray-700">
+            Households
+          </Link>
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            Sign out
+          </button>
         </div>
       </nav>
 
@@ -152,7 +164,7 @@ export default function ChoresPage() {
                   onChange={e => setNewChore(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g. Take out trash, Clean bathroom"
                   required
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-500"
                 />
               </div>
               <div>
@@ -207,18 +219,16 @@ export default function ChoresPage() {
                     chore.assignments.slice(0, 4).map(assignment => (
                       <div
                         key={assignment.id}
-                        className={`flex justify-between items-center p-2 rounded-md ${
-                          assignment.status === 'done'
+                        className={`flex justify-between items-center p-2 rounded-md ${assignment.status === 'done'
                             ? 'bg-green-50'
                             : 'bg-gray-50'
-                        }`}
+                          }`}
                       >
                         <div>
-                          <span className={`text-sm ${
-                            assignment.status === 'done'
+                          <span className={`text-sm ${assignment.status === 'done'
                               ? 'line-through text-gray-400'
                               : 'text-gray-700'
-                          }`}>
+                            }`}>
                             {assignment.user.name}
                           </span>
                           <span className="text-xs text-gray-400 ml-2">

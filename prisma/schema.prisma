@@ -8,27 +8,32 @@ datasource db {
 }
 
 model User {
-  id             String         @id @default(cuid())
-  name           String
-  email          String         @unique
-  password       String
-  memberships    Membership[]
-  assignments    Assignment[]
-  paidExpenses   Expense[]      @relation("Payer")
-  expenseShares  ExpenseShare[]
-  activities     Activity[]
-  createdAt      DateTime       @default(now())
+  id                 String         @id @default(cuid())
+  name               String
+  email              String         @unique
+  password           String
+  defaultHouseholdId String?        // ← new
+  memberships        Membership[]
+  assignments        Assignment[]
+  paidExpenses       Expense[]      @relation("Payer")
+  expenseShares      ExpenseShare[]
+  activities         Activity[]
+  reminders          Reminder[]     // ← new
+  availability       Availability[] // ← new
+  createdAt          DateTime       @default(now())
 }
 
 model Household {
-  id          String       @id @default(cuid())
-  name        String
-  inviteCode  String       @unique @default(cuid())
-  memberships Membership[]
-  chores      Chore[]
-  expenses    Expense[]
-  activities  Activity[]
-  createdAt   DateTime     @default(now())
+  id           String         @id @default(cuid())
+  name         String
+  inviteCode   String         @unique @default(cuid())
+  memberships  Membership[]
+  chores       Chore[]
+  expenses     Expense[]
+  activities   Activity[]
+  reminders    Reminder[]     // ← new
+  availability Availability[] // ← new
+  createdAt    DateTime       @default(now())
 }
 
 model Membership {
@@ -54,14 +59,15 @@ model Chore {
 }
 
 model Assignment {
-  id        String   @id @default(cuid())
-  chore     Chore    @relation(fields: [choreId], references: [id])
+  id        String     @id @default(cuid())
+  chore     Chore      @relation(fields: [choreId], references: [id])
   choreId   String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User       @relation(fields: [userId], references: [id])
   userId    String
   dueDate   DateTime
-  status    String   @default("pending")
-  createdAt DateTime @default(now())
+  status    String     @default("pending")
+  reminders Reminder[] // ← new
+  createdAt DateTime   @default(now())
 }
 
 model Expense {
@@ -94,5 +100,33 @@ model Activity {
   userId      String
   type        String
   description String
+  createdAt   DateTime  @default(now())
+}
+
+model Reminder {
+  id           String      @id @default(cuid())
+  user         User        @relation(fields: [userId], references: [id])
+  userId       String
+  household    Household   @relation(fields: [householdId], references: [id])
+  householdId  String
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
+  assignmentId String?
+  type         String      // "chore" | "bill"
+  title        String
+  remindAt     DateTime
+  dismissed    Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+}
+
+model Availability {
+  id          String    @id @default(cuid())
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  household   Household @relation(fields: [householdId], references: [id])
+  householdId String
+  startDate   DateTime
+  endDate     DateTime
+  type        String    @default("away")
+  note        String?
   createdAt   DateTime  @default(now())
 }
