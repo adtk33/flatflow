@@ -21,20 +21,36 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true)
     const [creating, setCreating] = useState(false)
     const [copied, setCopied] = useState<string | null>(null)
-
-
+    const [inviteEmail, setInviteEmail] = useState<Record<string, string>>({})
+    const [inviteSent, setInviteSent] = useState<Record<string, boolean>>({})
+    const [inviteError, setInviteError] = useState<Record<string, string>>({})
+    const [sendingInvite, setSendingInvite] = useState<Record<string, boolean>>({})
+    const [activities, setActivities] = useState<{
+        id: string
+        type: string
+        description: string
+        createdAt: string
+    }[]>([])
     useEffect(() => {
         if (status === 'authenticated') {
             fetch('/api/households')
                 .then(r => r.json())
-                .then(data => {
-                    setHouseholds(Array.isArray(data) ? data : [])
+                .then(async data => {
+                    const households = Array.isArray(data) ? data : []
+                    setHouseholds(households)
+
+                    // Fetch activities for first household
+                    if (households.length > 0) {
+                        const actRes = await fetch(`/api/households/${households[0].id}/activities`)
+                        const actData = await actRes.json()
+                        setActivities(Array.isArray(actData) ? actData : [])
+                    }
+
                     setLoading(false)
                 })
         } else if (status === 'unauthenticated') {
             router.push('/login')
         }
-        // if status === 'loading' we just wait
     }, [status, router])
 
     async function createHousehold(e: React.FormEvent) {
@@ -68,7 +84,33 @@ export default function DashboardPage() {
             </div>
         )
     }
+    async function sendEmailInvite(householdId: string, inviteCode: string) {
+        const email = inviteEmail[householdId]
+        if (!email) return
 
+        setSendingInvite(prev => ({ ...prev, [householdId]: true }))
+        setInviteError(prev => ({ ...prev, [householdId]: '' }))
+
+        const res = await fetch(`/api/households/${householdId}/invite`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+            setInviteError(prev => ({ ...prev, [householdId]: data.error }))
+        } else {
+            setInviteSent(prev => ({ ...prev, [householdId]: true }))
+            setInviteEmail(prev => ({ ...prev, [householdId]: '' }))
+            setTimeout(() => {
+                setInviteSent(prev => ({ ...prev, [householdId]: false }))
+            }, 3000)
+        }
+
+        setSendingInvite(prev => ({ ...prev, [householdId]: false }))
+    }
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Nav */}
@@ -97,7 +139,7 @@ export default function DashboardPage() {
                             onChange={e => setNewName(e.target.value)}
                             placeholder="e.g. The Flat, 42 Brook St"
                             required
-                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-500"
                         />
                         <button
                             type="submit"
@@ -132,12 +174,43 @@ export default function DashboardPage() {
                                     </div>
                                     <button
                                         onClick={() => copyInvite(h.inviteCode)}
-                                        className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-md"
+                                        className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-md text-gray-700 font-medium"
                                     >
                                         {copied === h.inviteCode ? '✓ Copied!' : 'Copy Invite Link'}
                                     </button>
                                 </div>
-
+                                {/* Invite by email */}
+                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                    <p className="text-sm font-medium text-gray-700 mb-2">
+                                        Invite by email
+                                    </p>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="email"
+                                            value={inviteEmail[h.id] || ''}
+                                            onChange={e => setInviteEmail(prev => ({
+                                                ...prev,
+                                                [h.id]: e.target.value
+                                            }))}
+                                            placeholder="roommate@email.com"
+                                            className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-gray-500"
+                                        />
+                                        <button
+                                            onClick={() => sendEmailInvite(h.id, h.inviteCode)}
+                                            disabled={sendingInvite[h.id] || !inviteEmail[h.id]}
+                                            className="bg-blue-600 text-white px-3 py-1.5 rounded-md text-sm hover:bg-blue-700 disabled:opacity-50"
+                                        >
+                                            {sendingInvite[h.id]
+                                                ? 'Sending...'
+                                                : inviteSent[h.id]
+                                                    ? '✓ Sent!'
+                                                    : 'Send'}
+                                        </button>
+                                    </div>
+                                    {inviteError[h.id] && (
+                                        <p className="text-red-500 text-xs mt-1">{inviteError[h.id]}</p>
+                                    )}
+                                </div>
                                 <p className="text-sm text-gray-500 mb-4">
                                     {h.memberships.length} member{h.memberships.length !== 1 ? 's' : ''}: {' '}
                                     {h.memberships.map(m => m.user.name).join(', ')}
@@ -165,6 +238,24 @@ export default function DashboardPage() {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                )}
+                {/* Activity Feed */}
+                {activities.length > 0 && (
+                    <div className="mt-8">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-3">
+                            Recent Activity
+                        </h2>
+                        <div className="bg-white rounded-lg shadow-sm divide-y divide-gray-100">
+                            {activities.map(activity => (
+                                <div key={activity.id} className="px-4 py-3 flex justify-between items-center">
+                                    <p className="text-sm text-gray-700">{activity.description}</p>
+                                    <p className="text-xs text-gray-400 ml-4 shrink-0">
+                                        {new Date(activity.createdAt).toLocaleDateString()}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </main>
