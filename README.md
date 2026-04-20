@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FlatFlow – Roommate Chores & Bills Coordinator
 
-## Getting Started
+FlatFlow helps roommates coordinate chores and split bills without 
+the endless back-and-forth. Create a household, invite roommates via 
+email or invite link, get fair chore assignments automatically, and 
+track who owes whom.
 
-First, run the development server:
+## Live Demo
+https://[your-app-name.vercel.app](https://flatflow-sooty.vercel.app/)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Features
+- **Auth** – Register and log in securely with email and password
+- **Households** – Create a household and invite roommates via link or email
+- **Chore Rotation** – Define chores and get auto-generated fair assignments
+- **Mark Complete** – Mark your assigned chores as done
+- **Expenses** – Log shared expenses split equally among all members
+- **Balances** – See net balances and a minimal settle-up payment plan
+- **Activity Feed** – See a live log of household actions
+
+## Pages
+- `/` – Landing page
+- `/register` – Create an account
+- `/login` – Sign in
+- `/dashboard` – Your households and activity feed
+- `/households/[id]/chores` – Chore assignments
+- `/households/[id]/expenses` – Shared expenses
+- `/households/[id]/balances` – Who owes whom
+
+## Running Locally
+
+### Prerequisites
+- Node.js 18+
+- A Supabase account (free) for the database
+- A Resend account (free) for email invites
+
+### Setup
+
+**1. Clone the repo**
+
 ```
+git clone https://github.com/YOURUSERNAME/flatflow.git
+cd flatflow
+```
+**2. Install dependencies**
+```
+npm install
+```
+**3. Create a `.env.local` file in the root with:**
+```
+DATABASE_URL=your_supabase_connection_string
+AUTH_SECRET=any_random_string_at_least_32_chars
+AUTH_URL=http://localhost:3000
+RESEND_API_KEY=your_resend_api_key
+```
+**4. Set up the database**
+```
+npx prisma migrate dev
+```
+**5. Run the app**
+```
+npm run dev
+```
+**6. Open http://localhost:3000**
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Where to get it |
+|---|---|
+| `DATABASE_URL` | Supabase → Project Settings → Database → Connection String |
+| `AUTH_SECRET` | Run `openssl rand -base64 32` in terminal |
+| `AUTH_URL` | `http://localhost:3000` for local, your Vercel URL for production |
+| `RESEND_API_KEY` | Resend dashboard → API Keys |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Tech Stack
+- **Frontend:** Next.js 16, Tailwind CSS
+- **Backend:** Next.js API Routes
+- **Database:** PostgreSQL via Prisma (hosted on Supabase)
+- **Auth:** NextAuth.js v5
+- **Email:** Resend
+- **Deploy:** Vercel
