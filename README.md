@@ -6,7 +6,7 @@ email or invite link, get fair chore assignments automatically, and
 track who owes whom.
 
 ## Live Demo
-https://[your-app-name.vercel.app](https://flatflow-sooty.vercel.app/)
+https://[flatflow-sooty.vercel.app](https://flatflow-sooty.vercel.app/)
 
 ## Features
 - **Auth** – Register and log in securely with email and password
