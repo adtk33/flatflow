@@ -74,33 +74,33 @@ export default function HouseholdHomePage() {
         <div className="min-h-screen bg-gray-50">
             {/* Nav */}
             <nav className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
-  <Link href={`/households/${householdId}`} className="text-xl font-bold text-blue-600">
-    FlatFlow
-  </Link>
-  <div className="flex items-center gap-4 text-sm">
-    <Link href={`/households/${householdId}/chores`} className="text-gray-500 hover:text-gray-700">
-      Chores
-    </Link>
-    <Link href={`/households/${householdId}/expenses`} className="text-gray-500 hover:text-gray-700">
-      Expenses
-    </Link>
-    <Link href={`/households/${householdId}/balances`} className="text-gray-500 hover:text-gray-700">
-      Balances
-    </Link>
-    <Link href={`/households/${householdId}/calendar`} className="text-gray-500 hover:text-gray-700">
-      Calendar
-    </Link>
-    <Link href="/dashboard?showAll=true" className="text-gray-500 hover:text-gray-700">
-      Households
-    </Link>
-    <button
-      onClick={() => signOut({ callbackUrl: '/login' })}
-      className="text-gray-500 hover:text-gray-700"
-    >
-      Sign out
-    </button>
-  </div>
-</nav>
+                <Link href={`/households/${householdId}`} className="text-xl font-bold text-blue-600">
+                    FlatFlow
+                </Link>
+                <div className="flex items-center gap-4 text-sm">
+                    <Link href={`/households/${householdId}/chores`} className="text-gray-500 hover:text-gray-700">
+                        Chores
+                    </Link>
+                    <Link href={`/households/${householdId}/expenses`} className="text-gray-500 hover:text-gray-700">
+                        Expenses
+                    </Link>
+                    <Link href={`/households/${householdId}/balances`} className="text-gray-500 hover:text-gray-700">
+                        Balances
+                    </Link>
+                    <Link href={`/households/${householdId}/calendar`} className="text-gray-500 hover:text-gray-700">
+                        Calendar
+                    </Link>
+                    <Link href="/dashboard?showAll=true" className="text-gray-500 hover:text-gray-700">
+                        Households
+                    </Link>
+                    <button
+                        onClick={() => signOut({ callbackUrl: '/login' })}
+                        className="text-gray-500 hover:text-gray-700"
+                    >
+                        Sign out
+                    </button>
+                </div>
+            </nav>
 
             <main className="max-w-2xl mx-auto px-4 py-8">
                 {/* Welcome */}

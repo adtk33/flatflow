@@ -1,10 +1,12 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -12,13 +14,13 @@ model User {
   name               String
   email              String         @unique
   password           String
-  defaultHouseholdId String?        // ← new
+  defaultHouseholdId String? // ← new
   memberships        Membership[]
   assignments        Assignment[]
   paidExpenses       Expense[]      @relation("Payer")
   expenseShares      ExpenseShare[]
   activities         Activity[]
-  reminders          Reminder[]     // ← new
+  reminders          Reminder[] // ← new
   availability       Availability[] // ← new
   createdAt          DateTime       @default(now())
 }
@@ -31,7 +33,7 @@ model Household {
   chores       Chore[]
   expenses     Expense[]
   activities   Activity[]
-  reminders    Reminder[]     // ← new
+  reminders    Reminder[] // ← new
   availability Availability[] // ← new
   createdAt    DateTime       @default(now())
 }
@@ -44,6 +46,7 @@ model Membership {
   household   Household @relation(fields: [householdId], references: [id])
   householdId String
   joinedAt    DateTime  @default(now())
+
   @@unique([userId, householdId])
 }
 
@@ -111,7 +114,7 @@ model Reminder {
   householdId  String
   assignment   Assignment? @relation(fields: [assignmentId], references: [id])
   assignmentId String?
-  type         String      // "chore" | "bill"
+  type         String // "chore" | "bill"
   title        String
   remindAt     DateTime
   dismissed    Boolean     @default(false)
